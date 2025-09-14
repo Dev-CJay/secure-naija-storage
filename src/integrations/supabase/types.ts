@@ -14,7 +14,194 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      file_retrievals: {
+        Row: {
+          completed_at: string | null
+          deal_id: string
+          id: string
+          retrieval_cost: number | null
+          started_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          deal_id: string
+          id?: string
+          retrieval_cost?: number | null
+          started_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          deal_id?: string
+          id?: string
+          retrieval_cost?: number | null
+          started_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_retrievals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "storage_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      network_stats: {
+        Row: {
+          active_deals: number
+          avg_response_time_ms: number
+          id: string
+          network_health_score: number
+          recorded_at: string | null
+          total_nodes: number
+          total_storage_used_gb: number
+        }
+        Insert: {
+          active_deals?: number
+          avg_response_time_ms?: number
+          id?: string
+          network_health_score?: number
+          recorded_at?: string | null
+          total_nodes?: number
+          total_storage_used_gb?: number
+        }
+        Update: {
+          active_deals?: number
+          avg_response_time_ms?: number
+          id?: string
+          network_health_score?: number
+          recorded_at?: string | null
+          total_nodes?: number
+          total_storage_used_gb?: number
+        }
+        Relationships: []
+      }
+      storage_deals: {
+        Row: {
+          created_at: string | null
+          deal_duration: number
+          expires_at: string
+          file_cid: string
+          file_name: string
+          file_size: number
+          file_type: string | null
+          id: string
+          last_verified: string | null
+          price_per_gb: number
+          status: string
+          storage_provider_id: string | null
+          total_cost: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          deal_duration?: number
+          expires_at: string
+          file_cid: string
+          file_name: string
+          file_size: number
+          file_type?: string | null
+          id?: string
+          last_verified?: string | null
+          price_per_gb?: number
+          status?: string
+          storage_provider_id?: string | null
+          total_cost: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          deal_duration?: number
+          expires_at?: string
+          file_cid?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string | null
+          id?: string
+          last_verified?: string | null
+          price_per_gb?: number
+          status?: string
+          storage_provider_id?: string | null
+          total_cost?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      storage_providers: {
+        Row: {
+          available_storage_gb: number
+          created_at: string | null
+          id: string
+          last_online: string | null
+          location: string
+          name: string
+          price_per_gb: number
+          reputation_score: number | null
+          total_storage_gb: number
+          uptime_percentage: number | null
+        }
+        Insert: {
+          available_storage_gb: number
+          created_at?: string | null
+          id?: string
+          last_online?: string | null
+          location: string
+          name: string
+          price_per_gb: number
+          reputation_score?: number | null
+          total_storage_gb: number
+          uptime_percentage?: number | null
+        }
+        Update: {
+          available_storage_gb?: number
+          created_at?: string | null
+          id?: string
+          last_online?: string | null
+          location?: string
+          name?: string
+          price_per_gb?: number
+          reputation_score?: number | null
+          total_storage_gb?: number
+          uptime_percentage?: number | null
+        }
+        Relationships: []
+      }
+      user_wallets: {
+        Row: {
+          created_at: string | null
+          dsc_balance: number
+          id: string
+          total_earned: number
+          total_spent: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          dsc_balance?: number
+          id?: string
+          total_earned?: number
+          total_spent?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          dsc_balance?: number
+          id?: string
+          total_earned?: number
+          total_spent?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
