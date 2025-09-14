@@ -6,6 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Header } from '@/components/Header';
+import { AuthModal } from '@/components/AuthModal';
+import { useAuth } from '@/hooks/useAuth';
+import { useStorageData } from '@/hooks/useStorageData';
 import { 
   Upload, 
   FileText, 
@@ -19,103 +22,50 @@ import {
   Users,
   TrendingUp,
   Copy,
-  CheckCircle
+  CheckCircle,
+  User
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
-
-interface StoredFile {
-  id: string;
-  name: string;
-  cid: string;
-  size: string;
-  uploadDate: string;
-  status: 'uploading' | 'stored' | 'retrieving' | 'error';
-}
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [files, setFiles] = useState<StoredFile[]>([
-    {
-      id: '1',
-      name: 'patient_records_q1.pdf',
-      cid: 'QmX7f9K2mNpQ8vR3wE6hS4tY1uA9bC5dF8gH2jL6kM7nP9r',
-      size: '2.4 MB',
-      uploadDate: '2024-01-15',
-      status: 'stored'
-    },
-    {
-      id: '2',
-      name: 'financial_report_2024.xlsx',
-      cid: 'QmY8g0L3nOpR9wF7iT5uB6cE1fG9dH4jK8mN2pQ5rS7tV0x',
-      size: '1.8 MB',
-      uploadDate: '2024-01-14',
-      status: 'stored'
-    }
-  ]);
+  const { user, isAuthenticated } = useAuth();
+  const { deals, wallet, networkStats, loading, createStorageDeal, deleteStorageDeal } = useStorageData();
   
   const [uploading, setUploading] = useState(false);
   const [copiedCid, setCopiedCid] = useState<string | null>(null);
-
-  // Mock data
-  const tokenBalance = '100.50';
-  const activeDeals = 2;
-  const storageUsed = 68;
-  const monthlyEarnings = '45.20';
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = event.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
 
-    setUploading(true);
-    
-    for (const file of Array.from(selectedFiles)) {
-      // Generate mock CID
-      const mockCid = `QmZ${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
-      
-      const newFile: StoredFile = {
-        id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
-        name: file.name,
-        cid: mockCid,
-        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-        uploadDate: new Date().toISOString().split('T')[0],
-        status: 'uploading'
-      };
-
-      setFiles(prev => [...prev, newFile]);
-
-      // Simulate upload progress
-      setTimeout(() => {
-        setFiles(prev => 
-          prev.map(f => 
-            f.id === newFile.id 
-              ? { ...f, status: 'stored' as const }
-              : f
-          )
-        );
-        
-        toast({
-          title: "File uploaded successfully",
-          description: `${file.name} has been stored on IPFS`,
-        });
-      }, 2000);
+    if (!isAuthenticated) {
+      setAuthModalOpen(true);
+      return;
     }
 
-    setUploading(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    setUploading(true);
+    
+    try {
+      for (const file of Array.from(selectedFiles)) {
+        await createStorageDeal(file);
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
   const handleDeleteFile = (fileId: string) => {
-    setFiles(prev => prev.filter(f => f.id !== fileId));
-    toast({
-      title: "File deleted",
-      description: "File has been removed from your storage",
-    });
+    deleteStorageDeal(fileId);
   };
 
   const handleCopyCid = (cid: string) => {
@@ -128,20 +78,33 @@ export const Dashboard: React.FC = () => {
     });
   };
 
-  const getStatusBadge = (status: StoredFile['status']) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'uploading':
-        return <Badge variant="secondary">Uploading...</Badge>;
-      case 'stored':
-        return <Badge variant="default">Stored</Badge>;
-      case 'retrieving':
-        return <Badge variant="outline">Retrieving</Badge>;
-      case 'error':
-        return <Badge variant="destructive">Error</Badge>;
+      case 'pending':
+        return <Badge variant="secondary">Pending</Badge>;
+      case 'active':
+        return <Badge variant="default">Active</Badge>;
+      case 'completed':
+        return <Badge variant="outline">Completed</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Failed</Badge>;
+      case 'expired':
+        return <Badge variant="outline">Expired</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -189,7 +152,9 @@ export const Dashboard: React.FC = () => {
                 <Coins className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-primary">{tokenBalance}</div>
+                <div className="text-2xl font-bold text-primary">
+                  {wallet?.dsc_balance?.toFixed(4) || '0.0000'}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   DecoSecure Tokens
                 </p>
@@ -204,7 +169,9 @@ export const Dashboard: React.FC = () => {
                 <Activity className="h-4 w-4 text-secondary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-secondary">{activeDeals}</div>
+                <div className="text-2xl font-bold text-secondary">
+                  {deals.filter(deal => deal.status === 'active').length}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Storage contracts
                 </p>
@@ -215,12 +182,16 @@ export const Dashboard: React.FC = () => {
           <motion.div variants={itemVariants}>
             <Card className="hover:shadow-card transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
                 <HardDrive className="h-4 w-4 text-accent" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-accent">{storageUsed}%</div>
-                <Progress value={storageUsed} className="mt-2" />
+                <div className="text-2xl font-bold text-accent">
+                  {wallet?.total_spent?.toFixed(4) || '0.0000'} DSC
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  On storage deals
+                </p>
               </CardContent>
             </Card>
           </motion.div>
@@ -228,13 +199,15 @@ export const Dashboard: React.FC = () => {
           <motion.div variants={itemVariants}>
             <Card className="hover:shadow-card transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Monthly Earnings</CardTitle>
+                <CardTitle className="text-sm font-medium">Network Nodes</CardTitle>
                 <TrendingUp className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-success">${monthlyEarnings}</div>
+                <div className="text-2xl font-bold text-success">
+                  {networkStats?.total_nodes?.toLocaleString() || '0'}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  From storage hosting
+                  Active storage nodes
                 </p>
               </CardContent>
             </Card>
@@ -259,9 +232,9 @@ export const Dashboard: React.FC = () => {
               <CardContent>
                 <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
                   <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-lg font-medium mb-2">Upload your files to IPFS</p>
+                  <p className="text-lg font-medium mb-2">Upload your files to decentralized storage</p>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Drag and drop files here or click to browse
+                    {isAuthenticated ? 'Drag and drop files here or click to browse' : 'Sign in to upload files'}
                   </p>
                   <input
                     ref={fileInputRef}
@@ -272,11 +245,11 @@ export const Dashboard: React.FC = () => {
                     accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.mp4,.mp3"
                   />
                   <Button 
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => isAuthenticated ? fileInputRef.current?.click() : setAuthModalOpen(true)}
                     disabled={uploading}
                     variant="hero"
                   >
-                    {uploading ? 'Uploading...' : 'Select Files'}
+                    {uploading ? 'Creating Storage Deal...' : isAuthenticated ? 'Select Files' : 'Sign In to Upload'}
                   </Button>
                   <p className="text-xs text-muted-foreground mt-4">
                     Supported: PDF, DOC, XLS, images, videos, audio files
@@ -290,68 +263,91 @@ export const Dashboard: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
-                  Your Files ({files.length})
+                  Your Storage Deals ({deals.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>CID</TableHead>
-                        <TableHead>Size</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {files.map((file) => (
-                        <TableRow key={file.id}>
-                          <TableCell className="font-medium">{file.name}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs">
-                                {file.cid.slice(0, 8)}...{file.cid.slice(-6)}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => handleCopyCid(file.cid)}
-                              >
-                                {copiedCid === file.cid ? (
-                                  <CheckCircle className="h-3 w-3 text-success" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell>{file.size}</TableCell>
-                          <TableCell>{getStatusBadge(file.status)}</TableCell>
-                          <TableCell>{file.uploadDate}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 hover:text-destructive"
-                                onClick={() => handleDeleteFile(file.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                {!isAuthenticated ? (
+                  <div className="text-center py-8">
+                    <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-medium mb-2">Sign in to view your storage deals</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Connect your account to see your files and storage contracts
+                    </p>
+                    <Button onClick={() => setAuthModalOpen(true)} variant="hero">
+                      Sign In
+                    </Button>
+                  </div>
+                ) : deals.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-medium mb-2">No storage deals yet</p>
+                    <p className="text-sm text-muted-foreground">
+                      Upload files to create your first storage deal
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>CID</TableHead>
+                          <TableHead>Size</TableHead>
+                          <TableHead>Cost</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {deals.map((deal) => (
+                          <TableRow key={deal.id}>
+                            <TableCell className="font-medium">{deal.file_name}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs">
+                                  {deal.file_cid.slice(0, 8)}...{deal.file_cid.slice(-6)}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => handleCopyCid(deal.file_cid)}
+                                >
+                                  {copiedCid === deal.file_cid ? (
+                                    <CheckCircle className="h-3 w-3 text-success" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell>{(deal.file_size / (1024 * 1024)).toFixed(1)} MB</TableCell>
+                            <TableCell>{deal.total_cost.toFixed(4)} DSC</TableCell>
+                            <TableCell>{getStatusBadge(deal.status)}</TableCell>
+                            <TableCell>{new Date(deal.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 hover:text-destructive"
+                                  onClick={() => handleDeleteFile(deal.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -427,25 +423,42 @@ export const Dashboard: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm">IPFS Nodes</span>
+                  <span className="text-sm">Storage Nodes</span>
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 bg-success rounded-full animate-pulse" />
-                    <span className="text-sm font-medium">8,429 Active</span>
+                    <span className="text-sm font-medium">
+                      {networkStats?.total_nodes?.toLocaleString() || '0'} Active
+                    </span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm">Network Health</span>
-                  <span className="text-sm font-medium text-success">Excellent</span>
+                  <span className="text-sm font-medium text-success">
+                    {networkStats?.network_health_score || 0}%
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm">Avg Response Time</span>
-                  <span className="text-sm font-medium">245ms</span>
+                  <span className="text-sm font-medium">
+                    {networkStats?.avg_response_time_ms || 0}ms
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Global Storage</span>
+                  <span className="text-sm font-medium">
+                    {((networkStats?.total_storage_used_gb || 0) / 1000000).toFixed(1)}PB
+                  </span>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
         </div>
       </div>
+      
+      <AuthModal 
+        open={authModalOpen} 
+        onOpenChange={setAuthModalOpen} 
+      />
     </div>
   );
 };

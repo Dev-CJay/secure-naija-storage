@@ -2,14 +2,18 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ConnectWallet } from '@/components/ConnectWallet';
-import { Shield, Menu, X } from 'lucide-react';
+import { AuthModal } from '@/components/AuthModal';
+import { useAuth } from '@/hooks/useAuth';
+import { Shield, Menu, X, User, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Header: React.FC = () => {
   const location = useLocation();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [account, setAccount] = useState<string | null>(null);
+  const { user, signOut, isAuthenticated } = useAuth();
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard' },
@@ -52,10 +56,10 @@ export const Header: React.FC = () => {
               ))}
             </nav>
 
-            {/* Wallet Connection */}
-            <div className="flex items-center space-x-4">
+            {/* Auth & Wallet */}
+            <div className="flex items-center space-x-2">
               <Button
-                variant={account ? "success" : "hero"}
+                variant={account ? "success" : "outline"}
                 size="sm"
                 onClick={() => setIsWalletModalOpen(true)}
                 className="hidden sm:inline-flex"
@@ -66,6 +70,28 @@ export const Header: React.FC = () => {
                   'Connect Wallet'
                 )}
               </Button>
+              
+              {isAuthenticated ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={signOut}
+                  className="hidden sm:inline-flex"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => setAuthModalOpen(true)}
+                  variant="hero"
+                  size="sm"
+                  className="hidden sm:inline-flex"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  Sign In
+                </Button>
+              )}
 
               {/* Mobile menu button */}
               <Button
@@ -133,6 +159,11 @@ export const Header: React.FC = () => {
       <ConnectWallet
         isOpen={isWalletModalOpen}
         onClose={() => setIsWalletModalOpen(false)}
+      />
+      
+      <AuthModal 
+        open={authModalOpen} 
+        onOpenChange={setAuthModalOpen} 
       />
     </>
   );
