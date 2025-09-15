@@ -123,9 +123,17 @@ export const useStorageData = () => {
       // Generate mock CID
       const mockCid = `Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
       
-      // Calculate costs
+      // Calculate costs using provider pricing or default
       const fileSizeGB = file.size / (1024 * 1024 * 1024);
-      const pricePerGB = 0.0001; // Default price
+      let pricePerGB = 0.0001; // Default price
+      
+      if (providerId) {
+        const provider = providers.find(p => p.id === providerId);
+        if (provider) {
+          pricePerGB = provider.price_per_gb;
+        }
+      }
+      
       const totalCost = fileSizeGB * pricePerGB;
       
       // Set expiry to 30 days from now
@@ -191,6 +199,75 @@ export const useStorageData = () => {
     }
   };
 
+  const retrieveFile = async (dealId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const retrievalCost = 0.0001; // Small fee for retrieval
+
+      // Create file retrieval record
+      const { error: retrievalError } = await supabase
+        .from('file_retrievals')
+        .insert([{
+          user_id: user.id,
+          deal_id: dealId,
+          retrieval_cost: retrievalCost
+        }]);
+
+      if (retrievalError) throw retrievalError;
+
+      // Update wallet balance
+      if (wallet) {
+        const newBalance = wallet.dsc_balance - retrievalCost;
+        const newSpent = wallet.total_spent + retrievalCost;
+
+        const { error: walletError } = await supabase
+          .from('user_wallets')
+          .update({ 
+            dsc_balance: newBalance,
+            total_spent: newSpent 
+          })
+          .eq('user_id', user.id);
+
+        if (walletError) throw walletError;
+
+        setWallet(prev => prev ? {
+          ...prev,
+          dsc_balance: newBalance,
+          total_spent: newSpent
+        } : null);
+      }
+
+      toast({
+        title: "File Retrieved",
+        description: "File retrieval initiated successfully",
+      });
+
+    } catch (error) {
+      console.error('Error retrieving file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to retrieve file",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  const createMultipleStorageDeals = async (files: File[], provider?: StorageProvider) => {
+    try {
+      for (const file of files) {
+        await createStorageDeal(file, provider?.id);
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const deleteStorageDeal = async (dealId: string) => {
     try {
       const { error } = await supabase
@@ -228,6 +305,8 @@ export const useStorageData = () => {
     networkStats,
     loading,
     createStorageDeal,
+    createMultipleStorageDeals,
+    retrieveFile,
     deleteStorageDeal,
     refetch: fetchData
   };

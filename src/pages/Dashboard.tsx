@@ -7,8 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Header } from '@/components/Header';
 import { AuthModal } from '@/components/AuthModal';
+import { FileUploadModal } from '@/components/FileUploadModal';
+import { FileRetrievalModal } from '@/components/FileRetrievalModal';
+import { NetworkMetrics } from '@/components/NetworkMetrics';
 import { useAuth } from '@/hooks/useAuth';
-import { useStorageData } from '@/hooks/useStorageData';
+import { useStorageData, StorageDeal } from '@/hooks/useStorageData';
 import { 
   Upload, 
   FileText, 
@@ -33,11 +36,23 @@ export const Dashboard: React.FC = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, isAuthenticated } = useAuth();
-  const { deals, wallet, networkStats, loading, createStorageDeal, deleteStorageDeal } = useStorageData();
+  const { 
+    deals, 
+    providers, 
+    wallet, 
+    networkStats, 
+    loading, 
+    createMultipleStorageDeals, 
+    retrieveFile, 
+    deleteStorageDeal 
+  } = useStorageData();
   
   const [uploading, setUploading] = useState(false);
   const [copiedCid, setCopiedCid] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [retrievalModalOpen, setRetrievalModalOpen] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<StorageDeal | null>(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = event.target.files;
@@ -48,20 +63,27 @@ export const Dashboard: React.FC = () => {
       return;
     }
 
+    setUploadModalOpen(true);
+  };
+
+  const handleUploadModalSubmit = async (files: File[], provider?: any) => {
     setUploading(true);
-    
     try {
-      for (const file of Array.from(selectedFiles)) {
-        await createStorageDeal(file);
-      }
+      await createMultipleStorageDeals(files, provider);
     } catch (error) {
       console.error('Upload failed:', error);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
+  };
+
+  const handleRetrieveFile = (deal: StorageDeal) => {
+    setSelectedDeal(deal);
+    setRetrievalModalOpen(true);
+  };
+
+  const handleRetrievalSubmit = async (dealId: string) => {
+    await retrieveFile(dealId);
   };
 
   const handleDeleteFile = (fileId: string) => {
@@ -245,7 +267,7 @@ export const Dashboard: React.FC = () => {
                     accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.mp4,.mp3"
                   />
                   <Button 
-                    onClick={() => isAuthenticated ? fileInputRef.current?.click() : setAuthModalOpen(true)}
+                    onClick={() => isAuthenticated ? setUploadModalOpen(true) : setAuthModalOpen(true)}
                     disabled={uploading}
                     variant="hero"
                   >
@@ -329,7 +351,13 @@ export const Dashboard: React.FC = () => {
                             <TableCell>{new Date(deal.created_at).toLocaleDateString()}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8"
+                                  onClick={() => handleRetrieveFile(deal)}
+                                  title="Retrieve file"
+                                >
                                   <Download className="h-4 w-4" />
                                 </Button>
                                 <Button 
@@ -337,6 +365,7 @@ export const Dashboard: React.FC = () => {
                                   size="icon" 
                                   className="h-8 w-8 hover:text-destructive"
                                   onClick={() => handleDeleteFile(deal.id)}
+                                  title="Delete deal"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -416,41 +445,8 @@ export const Dashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Network Status */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Network Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Storage Nodes</span>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 bg-success rounded-full animate-pulse" />
-                    <span className="text-sm font-medium">
-                      {networkStats?.total_nodes?.toLocaleString() || '0'} Active
-                    </span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Network Health</span>
-                  <span className="text-sm font-medium text-success">
-                    {networkStats?.network_health_score || 0}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Avg Response Time</span>
-                  <span className="text-sm font-medium">
-                    {networkStats?.avg_response_time_ms || 0}ms
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Global Storage</span>
-                  <span className="text-sm font-medium">
-                    {((networkStats?.total_storage_used_gb || 0) / 1000000).toFixed(1)}PB
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Network Metrics */}
+            <NetworkMetrics networkStats={networkStats} loading={loading} />
           </motion.div>
         </div>
       </div>
@@ -458,6 +454,20 @@ export const Dashboard: React.FC = () => {
       <AuthModal 
         open={authModalOpen} 
         onOpenChange={setAuthModalOpen} 
+      />
+      
+      <FileUploadModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        providers={providers}
+        onUpload={handleUploadModalSubmit}
+      />
+
+      <FileRetrievalModal
+        open={retrievalModalOpen}
+        onOpenChange={setRetrievalModalOpen}
+        deal={selectedDeal}
+        onRetrieve={handleRetrievalSubmit}
       />
     </div>
   );
