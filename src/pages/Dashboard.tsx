@@ -12,6 +12,10 @@ import { FileRetrievalModal } from '@/components/FileRetrievalModal';
 import { NetworkMetrics } from '@/components/NetworkMetrics';
 import { useAuth } from '@/hooks/useAuth';
 import { useStorageData, StorageDeal } from '@/hooks/useStorageData';
+import { BackupSettings } from '@/components/BackupSettings';
+import { ShareFiles } from '@/components/ShareFiles';
+import { Analytics } from '@/components/Analytics';
+import { CredibilitySystem } from '@/components/CredibilitySystem';
 import { 
   Upload, 
   FileText, 
@@ -26,7 +30,8 @@ import {
   TrendingUp,
   Copy,
   CheckCircle,
-  User
+  User,
+  Star
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -53,6 +58,7 @@ export const Dashboard: React.FC = () => {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [retrievalModalOpen, setRetrievalModalOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<StorageDeal | null>(null);
+  const [activeView, setActiveView] = useState<'dashboard' | 'backup' | 'share' | 'analytics' | 'credibility'>('dashboard');
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = event.target.files;
@@ -142,6 +148,21 @@ export const Dashboard: React.FC = () => {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
   };
+
+  // Handle view switching
+  if (activeView !== 'dashboard') {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          {activeView === 'backup' && <BackupSettings onClose={() => setActiveView('dashboard')} />}
+          {activeView === 'share' && <ShareFiles onClose={() => setActiveView('dashboard')} />}
+          {activeView === 'analytics' && <Analytics onClose={() => setActiveView('dashboard')} />}
+          {activeView === 'credibility' && <CredibilitySystem onClose={() => setActiveView('dashboard')} />}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -389,22 +410,43 @@ export const Dashboard: React.FC = () => {
             transition={{ duration: 0.6, delay: 0.4 }}
           >
             {/* Quick Actions */}
+            {/* Quick Actions */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => setActiveView('backup')}
+                >
                   <Shield className="mr-2 h-4 w-4" />
                   Backup Settings
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => setActiveView('share')}
+                >
                   <Users className="mr-2 h-4 w-4" />
                   Share Files
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => setActiveView('analytics')}
+                >
                   <Activity className="mr-2 h-4 w-4" />
                   View Analytics
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => setActiveView('credibility')}
+                >
+                  <Star className="mr-2 h-4 w-4" />
+                  Provider Credibility
                 </Button>
               </CardContent>
             </Card>
