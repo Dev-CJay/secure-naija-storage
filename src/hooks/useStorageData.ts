@@ -354,6 +354,29 @@ export const useStorageData = () => {
     fetchData();
   }, []);
 
+  // Function to manually refresh deal statuses
+  const refreshDealStatuses = async () => {
+    try {
+      const { data, error } = await supabase.rpc('refresh_deal_statuses');
+      if (error) throw error;
+      
+      // Refresh the data after status updates
+      await fetchData();
+      
+      if (data && data.length > 0) {
+        const { deals_activated, deals_expired } = data[0];
+        if (deals_activated > 0 || deals_expired > 0) {
+          toast({
+            title: "Deal Statuses Updated",
+            description: `${deals_activated} deals activated, ${deals_expired} deals expired`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing deal statuses:', error);
+    }
+  };
+
   return {
     deals,
     providers,
@@ -365,6 +388,7 @@ export const useStorageData = () => {
     retrieveFile,
     deleteStorageDeal,
     completeDealActivation,
+    refreshDealStatuses,
     refetch: fetchData
   };
 };

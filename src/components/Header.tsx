@@ -157,8 +157,8 @@ export const Header: React.FC = () => {
       </header>
 
       <ConnectWallet
-        isOpen={isWalletModalOpen}
-        onClose={() => setIsWalletModalOpen(false)}
+        open={isWalletModalOpen}
+        onOpenChange={setIsWalletModalOpen}
       />
       
       <AuthModal 

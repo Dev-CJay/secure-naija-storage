@@ -298,8 +298,8 @@ export const Homepage: React.FC = () => {
       </section>
 
       <ConnectWallet
-        isOpen={isWalletModalOpen}
-        onClose={() => setIsWalletModalOpen(false)}
+        open={isWalletModalOpen}
+        onOpenChange={setIsWalletModalOpen}
       />
     </div>
   );
