@@ -74,38 +74,48 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
     setUploadProgress(0);
 
     try {
-      // Simulate upload progress
+      // Simulate upload progress with more realistic stages
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          if (prev >= 90) {
+          if (prev >= 85) {
             clearInterval(progressInterval);
-            return 90;
+            return 85;
           }
-          return prev + 10;
+          return prev + Math.random() * 15 + 5; // Variable progress
         });
-      }, 200);
+      }, 300);
 
+      // Actually process the upload
       await onUpload(selectedFiles, selectedProvider);
       
       clearInterval(progressInterval);
-      setUploadProgress(100);
+      setUploadProgress(95);
       
+      // Final completion phase
       setTimeout(() => {
-        setSelectedFiles([]);
-        setSelectedProvider(undefined);
-        setUploadProgress(0);
-        onOpenChange(false);
-      }, 1000);
+        setUploadProgress(100);
+        setTimeout(() => {
+          setSelectedFiles([]);
+          setSelectedProvider(undefined);
+          setUploadProgress(0);
+          setUploading(false);
+          onOpenChange(false);
+          
+          toast({
+            title: "Upload Complete",
+            description: `${selectedFiles.length} file(s) uploaded and deals activated successfully`,
+          });
+        }, 800);
+      }, 500);
 
     } catch (error) {
       console.error('Upload failed:', error);
+      setUploading(false);
       toast({
         title: "Upload Failed",
         description: "Failed to create storage deals. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -247,12 +257,23 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
 
           {/* Upload Progress */}
           {uploading && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Creating storage deals...</span>
-                <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+                <span className="text-sm font-medium">
+                  {uploadProgress < 30 ? 'Uploading files...' :
+                   uploadProgress < 70 ? 'Creating smart contracts...' :
+                   uploadProgress < 95 ? 'Activating storage deals...' :
+                   'Finalizing...'}
+                </span>
+                <span className="text-sm text-muted-foreground">{Math.round(uploadProgress)}%</span>
               </div>
-              <Progress value={uploadProgress} className="h-2" />
+              <Progress value={uploadProgress} className="h-3" />
+              <div className="text-xs text-muted-foreground">
+                {uploadProgress < 95 ? 
+                  `Processing ${selectedFiles.length} file(s) with ${selectedProvider?.name || 'default provider'}` :
+                  'Upload complete! Redirecting...'
+                }
+              </div>
             </div>
           )}
         </div>
