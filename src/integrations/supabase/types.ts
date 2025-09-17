@@ -207,7 +207,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      process_pending_deals: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      refresh_deal_statuses: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          deals_activated: number
+          deals_expired: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
