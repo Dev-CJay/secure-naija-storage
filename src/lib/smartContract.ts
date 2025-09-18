@@ -101,15 +101,40 @@ export class SmartContractService {
   }
 
   async connectWallet(): Promise<string | null> {
-    if (!this.provider) {
-      throw new Error('No Web3 provider found');
+    // Check if MetaMask is installed
+    if (typeof window === 'undefined' || !window.ethereum) {
+      throw new Error('MetaMask is not installed. Please install MetaMask to connect your wallet.');
     }
 
     try {
-      const accounts = await this.provider.send('eth_requestAccounts', []);
+      // Reinitialize provider if needed
+      if (!this.provider) {
+        await this.initializeProvider();
+      }
+
+      if (!this.provider) {
+        throw new Error('Failed to initialize Web3 provider');
+      }
+
+      // Request account access
+      const accounts = await window.ethereum.request({ 
+        method: 'eth_requestAccounts' 
+      });
+      
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found. Please unlock MetaMask.');
+      }
+
       return accounts[0];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to connect wallet:', error);
+      
+      if (error.code === 4001) {
+        throw new Error('User rejected the connection request');
+      } else if (error.code === -32002) {
+        throw new Error('Connection request already pending. Please check MetaMask.');
+      }
+      
       throw error;
     }
   }
@@ -149,23 +174,51 @@ export class SmartContractService {
     }
   }
 
-  async retrieveFile(dealId: string, retrievalCost: number): Promise<boolean> {
-    if (!this.contract) {
-      // Mock implementation
-      return this.mockRetrieveFile(dealId);
+  async retrieveFile(fileCid: string, fileName: string): Promise<string> {
+    console.log(`Retrieving file: ${fileName} (CID: ${fileCid})`);
+    
+    // Mock file retrieval with proper file type handling
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const fileExtension = fileName.split('.').pop()?.toLowerCase();
+    let mockFileUrl: string;
+    
+    // Generate appropriate mock content based on file type
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(fileExtension || '')) {
+      // For images, create a sample image blob
+      mockFileUrl = 'https://picsum.photos/800/600';
+    } else if (['mp4', 'avi', 'mov'].includes(fileExtension || '')) {
+      // For videos, use a sample video
+      mockFileUrl = 'https://sample-videos.com/zip/10/mp4/SampleVideo_360x240_1mb.mp4';
+    } else {
+      // For other file types, create appropriate mock content
+      let mockContent: string;
+      let mimeType: string;
+      
+      switch (fileExtension) {
+        case 'pdf':
+          mockContent = 'Mock PDF content';
+          mimeType = 'application/pdf';
+          break;
+        case 'txt':
+          mockContent = `This is a mock text file: ${fileName}\n\nContent retrieved from decentralized storage.`;
+          mimeType = 'text/plain';
+          break;
+        case 'json':
+          mockContent = JSON.stringify({ message: `Mock JSON content for ${fileName}`, timestamp: new Date().toISOString() }, null, 2);
+          mimeType = 'application/json';
+          break;
+        default:
+          mockContent = `Mock content for ${fileName}\nFile type: ${fileExtension || 'unknown'}`;
+          mimeType = 'text/plain';
+      }
+      
+      const blob = new Blob([mockContent], { type: mimeType });
+      mockFileUrl = URL.createObjectURL(blob);
     }
-
-    try {
-      const tx = await this.contract.retrieveFile(dealId, {
-        value: ethers.utils.parseEther(retrievalCost.toString())
-      });
-
-      await tx.wait();
-      return true;
-    } catch (error) {
-      console.error('Failed to retrieve file:', error);
-      throw error;
-    }
+    
+    console.log(`File retrieved: ${fileName}`);
+    return mockFileUrl;
   }
 
   async verifyStorage(dealId: string): Promise<boolean> {

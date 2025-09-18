@@ -8,6 +8,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Build } from "./pages/Build";
 import { Learn } from "./pages/Learn";
 import { Ecosystem } from "./pages/Ecosystem";
+import { SharedFile } from "./pages/SharedFile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/build" element={<Build />} />
           <Route path="/learn" element={<Learn />} />
           <Route path="/ecosystem" element={<Ecosystem />} />
+          <Route path="/s/:shareId" element={<SharedFile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

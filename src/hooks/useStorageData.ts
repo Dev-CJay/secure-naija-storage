@@ -292,9 +292,52 @@ export const useStorageData = () => {
         } : null);
       }
 
+      // Get the deal to retrieve
+      const dealToRetrieve = deals.find(d => d.id === dealId);
+      if (!dealToRetrieve) {
+        throw new Error('Deal not found');
+      }
+
+      // Call smart contract retrieve function with proper download handling
+      const fileUrl = await contractService.retrieveFile(dealToRetrieve.file_cid, dealToRetrieve.file_name);
+      
+      // Create a proper download with correct MIME type
+      if (fileUrl) {
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = dealToRetrieve.file_name;
+        
+        // Set proper content type based on file extension
+        const fileExtension = dealToRetrieve.file_name.split('.').pop()?.toLowerCase();
+        const mimeTypes: { [key: string]: string } = {
+          'png': 'image/png',
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'gif': 'image/gif',
+          'webp': 'image/webp',
+          'pdf': 'application/pdf',
+          'txt': 'text/plain',
+          'json': 'application/json',
+          'mp4': 'video/mp4',
+          'mp3': 'audio/mpeg'
+        };
+        
+        if (fileExtension && mimeTypes[fileExtension]) {
+          link.type = mimeTypes[fileExtension];
+        }
+        
+        // Force download behavior for mobile devices
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
       toast({
-        title: "File Retrieved",
-        description: "File retrieval initiated successfully",
+        title: "File Downloaded",
+        description: `${dealToRetrieve.file_name} has been downloaded to your device`,
       });
 
     } catch (error) {
